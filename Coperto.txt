@@ -3,37 +3,38 @@ var output = {
 };
 var sku = "COP";
 
-// Verifichiamo che l'account sia in stato Bozza (Draft)
-if (ikContext.account && ikContext.account.isDraft === true) {
+// 1. FORZATURA DEL TRIGGER: leggiamo il totale e il numero pax 
+// per assicurarci che lo script veda ogni minima variazione.
+var currentPax = ikContext.account.clientCount || 0;
+var totalCheck = ikContext.account.totalAmount || 0; 
+
+if (ikContext.account.isDraft === true) {
     
-    // 1. Quanti pax (coperti) sono segnati ora sul tavolo?
-    var targetPax = ikContext.account.clientCount || 0;
-    
-    // 2. Contiamo quanti SKU "COP" sono già presenti nel carrello
+    // 2. CONTEGGIO PUNTUALE
     var lines = ikContext.account.transactionLines || [];
-    var countAttuale = 0;
+    var copertiPresenti = 0;
 
     for (var i = 0; i < lines.length; i++) {
-        // Usiamo itemSku o sku a seconda di come lo passa Lightspeed
-        if (lines[i].itemSku === sku || lines[i].sku === sku) {
-            countAttuale++;
+        if (lines[i].itemSku === sku) {
+            copertiPresenti++;
         }
     }
 
-    // 3. LOGICA DI AUMENTO
-    // Se i pax segnati sono più degli SKU presenti, aggiungiamo la differenza
-    if (targetPax > countAttuale) {
-        var daAggiungere = targetPax - countAttuale;
+    // 3. LOGICA DI AGGIORNAMENTO (SOLO AUMENTO)
+    // Se il numero attuale nel conto è minore di quello dei pax, aggiungi.
+    if (currentPax > copertiPresenti) {
+        var diff = currentPax - copertiPresenti;
         
-        for (var a = 0; a < daAggiungere; a++) {
+        for (var a = 0; a < diff; a++) {
             output.rewards.push({
                 type: "ADD",
                 sku: sku,
-                insertionPhase: 4 // Fondamentale per Lightspeed
+                // Usiamo la fase 4 per farlo inserire dopo le righe normali
+                insertionPhase: 4 
             });
         }
     }
 }
 
-// Restituisce il comando al POS
+// 4. ESECUZIONE
 JSON.stringify(output);
