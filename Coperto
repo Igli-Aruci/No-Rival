@@ -1,40 +1,47 @@
 var output = { rewards: [] };
 var sku = "COP";
 
-// Verifichiamo che l'account sia in bozza
 if (ikContext.account && ikContext.account.isDraft === true) {
     
-    // 1. Quanti coperti abbiamo impostato ora?
+    // 1. Quanti coperti dovrebbero esserci (Target)
     var targetCount = ikContext.account.clientCount || 0;
     
-    // 2. Quanti SKU "COP" sono già presenti nel sistema?
+    // 2. Recuperiamo i premi esistenti e filtriamo solo quelli con lo SKU "COP"
     var existingRewards = ikContext.account.rewards || [];
-    var currentCount = 0;
+    var copItems = [];
+    
     for (var i = 0; i < existingRewards.length; i++) {
         if (existingRewards[i].sku === sku) {
-            currentCount++;
+            copItems.push(existingRewards[i]);
         }
     }
+    
+    var currentCount = copItems.length;
 
-    // 3. Calcoliamo la differenza
+    // 3. LOGICA DI SINCRONIZZAZIONE
     if (targetCount > currentCount) {
-        // Se mancano, aggiungiamo
+        // AZIONE: AGGIUNGI (se mancano)
         var toAdd = targetCount - currentCount;
         for (var a = 0; a < toAdd; a++) {
-            output.rewards.push({ type: "ADD", sku: sku });
+            output.rewards.push({
+                type: "ADD",
+                sku: sku
+            });
         }
     } 
-else if (targetCount < currentCount) {
+    else if (targetCount < currentCount) {
+        // AZIONE: RIMUOVI (se sono troppi)
         var toRemove = currentCount - targetCount;
-        // Filtriamo solo i premi "COP" che hanno un ID
-        var itemsToRemove = existingRewards.filter(function(r) { return r.sku === sku; });
-        
         for (var r = 0; r < toRemove; r++) {
-            output.rewards.push({ 
-                type: "REMOVE", 
-                id: itemsToRemove[r].id // Usiamo l'ID interno del sistema
+            // Usiamo l'ID specifico della riga esistente per eliminarla
+            // Se "REMOVE" non dovesse andare, prova a cambiare in "DELETE"
+            output.rewards.push({
+                type: "REMOVE",
+                id: copItems[r].id 
             });
         }
     }
-// Restituisce il comando alla piattaforma
+}
+
+// Trasforma l'oggetto finale in stringa JSON per il sistema
 JSON.stringify(output);
