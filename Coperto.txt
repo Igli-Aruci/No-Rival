@@ -3,48 +3,37 @@ var output = {
 };
 var sku = "COP";
 
-// Verifichiamo che l'account sia attivo (Draft)
+// Verifichiamo che l'account sia in stato Bozza (Draft)
 if (ikContext.account && ikContext.account.isDraft === true) {
     
-    // 1. Quanti pax (coperti) sono impostati ora sul tavolo?
+    // 1. Quanti pax (coperti) sono segnati ora sul tavolo?
     var targetPax = ikContext.account.clientCount || 0;
     
-    // 2. Controlliamo cosa c'è già nel conto (transactionLines)
+    // 2. Contiamo quanti SKU "COP" sono già presenti nel carrello
     var lines = ikContext.account.transactionLines || [];
-    var copertiGiaPresenti = [];
+    var countAttuale = 0;
 
     for (var i = 0; i < lines.length; i++) {
-        if (lines[i].itemSku === sku) {
-            copertiGiaPresenti.push(lines[i]);
+        // Usiamo itemSku o sku a seconda di come lo passa Lightspeed
+        if (lines[i].itemSku === sku || lines[i].sku === sku) {
+            countAttuale++;
         }
     }
 
-    var countAttuale = copertiGiaPresenti.length;
-
-    // 3. LOGICA DI AGGIORNAMENTO
+    // 3. LOGICA DI AUMENTO
+    // Se i pax segnati sono più degli SKU presenti, aggiungiamo la differenza
     if (targetPax > countAttuale) {
-        // Se i pax aumentano, AGGIUNGIAMO la differenza
         var daAggiungere = targetPax - countAttuale;
+        
         for (var a = 0; a < daAggiungere; a++) {
             output.rewards.push({
                 type: "ADD",
                 sku: sku,
-                insertionPhase: 4 // Fase di automazione per Lightspeed
-            });
-        }
-    } 
-    else if (targetPax < countAttuale) {
-        // Se i pax diminuiscono, RIMUOVIAMO l'eccedenza
-        var daRimuovere = countAttuale - targetPax;
-        for (var r = 0; r < daRimuovere; r++) {
-            // Per rimuovere, Lightspeed ha bisogno dell'ID unico della riga
-            output.rewards.push({
-                type: "REMOVE",
-                id: copertiGiaPresenti[r].id
+                insertionPhase: 4 // Fondamentale per Lightspeed
             });
         }
     }
 }
 
-// Restituisce il comando finale
+// Restituisce il comando al POS
 JSON.stringify(output);
