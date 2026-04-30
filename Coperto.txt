@@ -1,33 +1,50 @@
-var output = { rewards: [] };
+var output = {
+    rewards: []
+};
 var sku = "COP";
 
-if (ikContext.account.isDraft == true) {
-    var targetCount = ikContext.account.clientCount || 0;
+// Verifichiamo che l'account sia attivo (Draft)
+if (ikContext.account && ikContext.account.isDraft === true) {
     
-    // Recuperiamo i premi già esistenti (attenzione al nome dell'array nel tuo sistema)
-    var existingRewards = ikContext.account.rewards || [];
+    // 1. Quanti pax (coperti) sono impostati ora sul tavolo?
+    var targetPax = ikContext.account.clientCount || 0;
     
-    // Contiamo quanti "COP" sono presenti attualmente
-    var currentCount = 0;
-    for (var i = 0; i < existingRewards.length; i++) {
-        if (existingRewards[i].sku === sku) {
-            currentCount++;
+    // 2. Controlliamo cosa c'è già nel conto (transactionLines)
+    var lines = ikContext.account.transactionLines || [];
+    var copertiGiaPresenti = [];
+
+    for (var i = 0; i < lines.length; i++) {
+        if (lines[i].itemSku === sku) {
+            copertiGiaPresenti.push(lines[i]);
         }
     }
 
-    // Calcolo differenza
-    if (targetCount > currentCount) {
-        // Aggiungi quelli che mancano
-        for (var a = 0; a < (targetCount - currentCount); a++) {
-            output.rewards.push({ type: "ADD", sku: sku });
+    var countAttuale = copertiGiaPresenti.length;
+
+    // 3. LOGICA DI AGGIORNAMENTO
+    if (targetPax > countAttuale) {
+        // Se i pax aumentano, AGGIUNGIAMO la differenza
+        var daAggiungere = targetPax - countAttuale;
+        for (var a = 0; a < daAggiungere; a++) {
+            output.rewards.push({
+                type: "ADD",
+                sku: sku,
+                insertionPhase: 4 // Fase di automazione per Lightspeed
+            });
         }
-    } else if (targetCount < currentCount) {
-        // Rimuovi quelli in più
-        for (var r = 0; r < (currentCount - targetCount); r++) {
-            // PROVA: se "REMOVE" non va, prova "DELETE"
-            output.rewards.push({ type: "REMOVE", sku: sku });
+    } 
+    else if (targetPax < countAttuale) {
+        // Se i pax diminuiscono, RIMUOVIAMO l'eccedenza
+        var daRimuovere = countAttuale - targetPax;
+        for (var r = 0; r < daRimuovere; r++) {
+            // Per rimuovere, Lightspeed ha bisogno dell'ID unico della riga
+            output.rewards.push({
+                type: "REMOVE",
+                id: copertiGiaPresenti[r].id
+            });
         }
     }
 }
 
+// Restituisce il comando finale
 JSON.stringify(output);
