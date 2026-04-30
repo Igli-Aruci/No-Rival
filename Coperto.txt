@@ -2,27 +2,20 @@ var output = { rewards: [] };
 var sku = "COP";
 
 if (ikContext.account && ikContext.account.isDraft === true) {
-    
-    // 1. Quanti coperti dovrebbero esserci (Target)
     var targetCount = ikContext.account.clientCount || 0;
-    
-    // 2. Recuperiamo i premi esistenti e filtriamo solo quelli con lo SKU "COP"
     var existingRewards = ikContext.account.rewards || [];
-    var copItems = [];
     
-    for (var i = 0; i < existingRewards.length; i++) {
-        if (existingRewards[i].sku === sku) {
-            copItems.push(existingRewards[i]);
-        }
-    }
-    
+    // Filtriamo i premi esistenti per trovare tutti i "COP"
+    var copItems = existingRewards.filter(function(item) {
+        return item.sku === sku;
+    });
+
     var currentCount = copItems.length;
 
-    // 3. LOGICA DI SINCRONIZZAZIONE
     if (targetCount > currentCount) {
-        // AZIONE: AGGIUNGI (se mancano)
+        // AGGIUNGI: Lightspeed di solito accetta ADD
         var toAdd = targetCount - currentCount;
-        for (var a = 0; a < toAdd; a++) {
+        for (var i = 0; i < toAdd; i++) {
             output.rewards.push({
                 type: "ADD",
                 sku: sku
@@ -30,18 +23,17 @@ if (ikContext.account && ikContext.account.isDraft === true) {
         }
     } 
     else if (targetCount < currentCount) {
-        // AZIONE: RIMUOVI (se sono troppi)
+        // RIMOZIONE LIGHTSPEED: 
+        // In molti moduli Lightspeed, il comando corretto è "VOID" o "DELETE"
+        // e richiede il 'uuid' o il 'line_item_id'
         var toRemove = currentCount - targetCount;
-        for (var r = 0; r < toRemove; r++) {
-            // Usiamo l'ID specifico della riga esistente per eliminarla
-            // Se "REMOVE" non dovesse andare, prova a cambiare in "DELETE"
+        for (var j = 0; j < toRemove; j++) {
             output.rewards.push({
-                type: "REMOVE",
-                id: copItems[r].id 
+                type: "VOID", // Prova VOID, è lo standard Lightspeed per annullare righe
+                id: copItems[j].id || copItems[j].uuid
             });
         }
     }
 }
 
-// Trasforma l'oggetto finale in stringa JSON per il sistema
 JSON.stringify(output);
