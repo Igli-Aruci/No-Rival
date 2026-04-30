@@ -3,31 +3,36 @@ var output = {
 };
 var sku = "COP";
 
+// 1. Verifichiamo che il tavolo sia aperto (isDraft)
 if (ikContext.account && ikContext.account.isDraft === true) {
+    
+    // Recuperiamo il numero di persone salvato nel tavolo
     var targetPax = ikContext.account.clientCount || 0;
     
-    // 1. Calcoliamo la quantità TOTALE già presente
+    // 2. Calcoliamo quanti COP sono già presenti nel conto (sommando le quantità)
     var currentTotalQuantity = 0;
     var lines = ikContext.account.transactionLines || [];
 
     for (var i = 0; i < lines.length; i++) {
         if (lines[i].itemSku === sku || lines[i].sku === sku) {
-            // Sommiamo la quantità effettiva della riga (es. se una riga è 2x COP, aggiunge 2)
+            // Usiamo la proprietà quantity della riga
             currentTotalQuantity += (lines[i].quantity || 0);
         }
     }
 
-    // 2. Logica di aggiunta basata sulla differenza di quantità
+    // 3. Se mancano dei coperti rispetto ai pax selezionati
     if (targetPax > currentTotalQuantity) {
         var quantityToAdd = targetPax - currentTotalQuantity;
         
         output.rewards.push({
             type: "ADD",
             sku: sku,
-            quantity: quantityToAdd, // Specifichiamo la quantità esatta da aggiungere
+            quantity: quantityToAdd,
+            // Usiamo la fase 4 per assicurarci che si agganci al salvataggio dell'ordine
             insertionPhase: 4
         });
     }
 }
 
+// Restituiamo il comando a Lightspeed
 JSON.stringify(output);
