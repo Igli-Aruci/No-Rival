@@ -1,33 +1,31 @@
 var output = { rewards: [] };
 var sku = "COP";
 
-if (ikContext.account && ikContext.account.isDraft === true) {
-    var targetCount = ikContext.account.clientCount || 0;
-    var existingRewards = ikContext.account.rewards || [];
+if (ikContext.account.isDraft == true) {
+    var targetCount = ikContext.account.clientCount; // Quanti dovrebbero essere
     
-    // Filtriamo i "COP" esistenti
-    var copItems = existingRewards.filter(function(item) {
-        return item.sku === sku;
-    });
+    // 1. Contiamo quanti SKU "COP" ci sono già
+    var existingRewards = ikContext.account.rewards || [];
+    var currentCount = existingRewards.filter(function(r) {
+        return r.sku === sku;
+    }).length;
 
-    var currentCount = copItems.length;
+    // 2. Calcoliamo la differenza
+    var difference = targetCount - currentCount;
 
-    // Se il numero attuale è diverso dal target (sia più alto che più basso)
-    if (targetCount !== currentCount) {
-        
-        // 1. RIMUOVIAMO TUTTO quello che esiste (Reset)
-        // Lightspeed spesso richiede di azzerare per aggiornare
-        for (var j = 0; j < currentCount; j++) {
-            output.rewards.push({
-                type: "DELETE", // In Lightspeed Restaurant prova DELETE o VOID
-                id: copItems[j].id || copItems[j].uuid
-            });
-        }
-
-        // 2. AGGIUNGIAMO il numero corretto da zero
-        for (var i = 0; i < targetCount; i++) {
+    if (difference > 0) {
+        // Dobbiamo AGGIUNGERE la differenza
+        for (var i = 0; i < difference; i++) {
             output.rewards.push({
                 type: "ADD",
+                sku: sku
+            });
+        }
+    } else if (difference < 0) {
+        // Dobbiamo RIMUOVERE l'eccedenza (se la piattaforma supporta "REMOVE")
+        for (var j = 0; j < Math.abs(difference); j++) {
+            output.rewards.push({
+                type: "REMOVE",
                 sku: sku
             });
         }
