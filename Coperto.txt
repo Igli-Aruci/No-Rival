@@ -2,32 +2,30 @@ var output = { rewards: [] };
 var sku = "COP";
 
 if (ikContext.account.isDraft == true) {
-    var targetCount = ikContext.account.clientCount; // Quanti dovrebbero essere
+    var targetCount = ikContext.account.clientCount || 0;
     
-    // 1. Contiamo quanti SKU "COP" ci sono già
+    // Recuperiamo i premi già esistenti (attenzione al nome dell'array nel tuo sistema)
     var existingRewards = ikContext.account.rewards || [];
-    var currentCount = existingRewards.filter(function(r) {
-        return r.sku === sku;
-    }).length;
-
-    // 2. Calcoliamo la differenza
-    var difference = targetCount - currentCount;
-
-    if (difference > 0) {
-        // Dobbiamo AGGIUNGERE la differenza
-        for (var i = 0; i < difference; i++) {
-            output.rewards.push({
-                type: "ADD",
-                sku: sku
-            });
+    
+    // Contiamo quanti "COP" sono presenti attualmente
+    var currentCount = 0;
+    for (var i = 0; i < existingRewards.length; i++) {
+        if (existingRewards[i].sku === sku) {
+            currentCount++;
         }
-    } else if (difference < 0) {
-        // Dobbiamo RIMUOVERE l'eccedenza (se la piattaforma supporta "REMOVE")
-        for (var j = 0; j < Math.abs(difference); j++) {
-            output.rewards.push({
-                type: "REMOVE",
-                sku: sku
-            });
+    }
+
+    // Calcolo differenza
+    if (targetCount > currentCount) {
+        // Aggiungi quelli che mancano
+        for (var a = 0; a < (targetCount - currentCount); a++) {
+            output.rewards.push({ type: "ADD", sku: sku });
+        }
+    } else if (targetCount < currentCount) {
+        // Rimuovi quelli in più
+        for (var r = 0; r < (currentCount - targetCount); r++) {
+            // PROVA: se "REMOVE" non va, prova "DELETE"
+            output.rewards.push({ type: "REMOVE", sku: sku });
         }
     }
 }
