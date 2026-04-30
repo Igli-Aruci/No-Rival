@@ -1,49 +1,16 @@
-var output = {
-    rewards: []
-};
+var output = { rewards: [] };
 var sku = "COP";
 
-// Verifichiamo che l'account sia in stato Bozza (Draft)
 if (ikContext.account && ikContext.account.isDraft === true) {
-    
-    // 1. Quante persone (pax) sono segnate al tavolo?
     var targetCount = ikContext.account.clientCount || 0;
-    
-    // 2. Contiamo quanti SKU "COP" sono già presenti nel conto
-    var existingLines = ikContext.account.transactionLines || [];
-    var copItems = [];
-    
-    for (var i = 0; i < existingLines.length; i++) {
-        if (existingLines[i].itemSku === sku) {
-            copItems.push(existingLines[i]);
-        }
-    }
-    
-    var currentCount = copItems.length;
 
-    // 3. LOGICA DI SINCRONIZZAZIONE
-    if (targetCount > currentCount) {
-        // Se mancano coperti, AGGIUNGIAMO la differenza
-        var toAdd = targetCount - currentCount;
-        for (var a = 0; a < toAdd; a++) {
-            output.rewards.push({
-                type: "ADD",
-                sku: sku
-            });
-        }
-    } 
-    else if (targetCount < currentCount) {
-        // Se ci sono troppi coperti, RIMUOVIAMO l'eccedenza
-        var toRemove = currentCount - targetCount;
-        for (var r = 0; r < toRemove; r++) {
-            // Usiamo l'ID unico della riga per dire a Lightspeed quale eliminare
-            output.rewards.push({
-                type: "REMOVE",
-                id: copItems[r].id
-            });
-        }
-    }
+    // Inviamo un comando di tipo UPDATE o SET
+    // Questo dice al sistema di ignorare i calcoli e impostare il totale
+    output.rewards.push({
+        type: "UPDATE", 
+        sku: sku,
+        quantity: targetCount
+    });
 }
 
-// Restituisce il risultato al sistema in formato stringa JSON
 JSON.stringify(output);
