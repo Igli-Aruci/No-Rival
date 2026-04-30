@@ -1,40 +1,43 @@
-var output = {
-    rewards: []
-};
+var output = { rewards: [] };
 var sku = "COP";
 
-// 1. FORZATURA DEL TRIGGER: leggiamo il totale e il numero pax 
-// per assicurarci che lo script veda ogni minima variazione.
-var currentPax = ikContext.account.clientCount || 0;
-var totalCheck = ikContext.account.totalAmount || 0; 
-
-if (ikContext.account.isDraft === true) {
+// 1. Verifichiamo la presenza dell'account e dei dati
+if (ikContext && ikContext.account) {
+    var account = ikContext.account;
     
-    // 2. CONTEGGIO PUNTUALE
-    var lines = ikContext.account.transactionLines || [];
-    var copertiPresenti = 0;
-
-    for (var i = 0; i < lines.length; i++) {
-        if (lines[i].itemSku === sku) {
-            copertiPresenti++;
-        }
-    }
-
-    // 3. LOGICA DI AGGIORNAMENTO (SOLO AUMENTO)
-    // Se il numero attuale nel conto è minore di quello dei pax, aggiungi.
-    if (currentPax > copertiPresenti) {
-        var diff = currentPax - copertiPresenti;
+    // Solo se siamo in bozza (tavolo aperto non pagato)
+    if (account.isDraft === true) {
         
-        for (var a = 0; a < diff; a++) {
-            output.rewards.push({
-                type: "ADD",
-                sku: sku,
-                // Usiamo la fase 4 per farlo inserire dopo le righe normali
-                insertionPhase: 4 
-            });
+        var targetPax = account.clientCount || 0;
+        
+        // 2. SCANSIONE MANUALE: non usiamo filter(), cerchiamo riga per riga
+        var currentCopCount = 0;
+        if (account.transactionLines && account.transactionLines.length > 0) {
+            for (var i = 0; i < account.transactionLines.length; i++) {
+                var line = account.transactionLines[i];
+                // Controlliamo sia itemSku che sku (per sicurezza tra versioni diverse)
+                if (line.itemSku === sku || line.sku === sku) {
+                    currentCopCount++;
+                }
+            }
+        }
+
+        // 3. LOGICA DI FORZATURA
+        // Se i pax sul tavolo sono 4 e noi ne contiamo solo 2...
+        if (targetPax > currentCopCount) {
+            var diff = targetPax - currentCopCount;
+            
+            for (var j = 0; j < diff; j++) {
+                output.rewards.push({
+                    type: "ADD",
+                    sku: sku,
+                    // Usiamo una fase diversa (0 o 1) per forzare l'inserimento immediato
+                    insertionPhase: 1 
+                });
+            }
         }
     }
 }
 
-// 4. ESECUZIONE
+// 4. RESTITUIAMO IL JSON
 JSON.stringify(output);
