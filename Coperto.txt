@@ -1,43 +1,40 @@
-var output = { rewards: [] };
+var output = {
+    rewards: []
+};
 var sku = "COP";
 
-// 1. Verifichiamo la presenza dell'account e dei dati
-if (ikContext && ikContext.account) {
-    var account = ikContext.account;
-    
-    // Solo se siamo in bozza (tavolo aperto non pagato)
-    if (account.isDraft === true) {
-        
-        var targetPax = account.clientCount || 0;
-        
-        // 2. SCANSIONE MANUALE: non usiamo filter(), cerchiamo riga per riga
-        var currentCopCount = 0;
-        if (account.transactionLines && account.transactionLines.length > 0) {
-            for (var i = 0; i < account.transactionLines.length; i++) {
-                var line = account.transactionLines[i];
-                // Controlliamo sia itemSku che sku (per sicurezza tra versioni diverse)
-                if (line.itemSku === sku || line.sku === sku) {
-                    currentCopCount++;
-                }
-            }
-        }
+// Accediamo direttamente all'account
+var account = ikContext.account;
 
-        // 3. LOGICA DI FORZATURA
-        // Se i pax sul tavolo sono 4 e noi ne contiamo solo 2...
-        if (targetPax > currentCopCount) {
-            var diff = targetPax - currentCopCount;
-            
-            for (var j = 0; j < diff; j++) {
-                output.rewards.push({
-                    type: "ADD",
-                    sku: sku,
-                    // Usiamo una fase diversa (0 o 1) per forzare l'inserimento immediato
-                    insertionPhase: 1 
-                });
-            }
+if (account && account.isDraft === true) {
+    var targetPax = account.clientCount || 0;
+    
+    // Conteggio manuale delle righe esistenti con quello SKU
+    var existingCopCount = 0;
+    var lines = account.transactionLines || [];
+
+    for (var i = 0; i < lines.length; i++) {
+        // Verifichiamo lo SKU in tutti i modi possibili in cui Lightspeed lo chiama
+        if (lines[i].itemSku === sku || lines[i].sku === sku || lines[i].productSku === sku) {
+            existingCopCount++;
+        }
+    }
+
+    // Se mancano righe rispetto ai pax impostati
+    if (targetPax > existingCopCount) {
+        var diff = targetPax - existingCopCount;
+        
+        for (var j = 0; j < diff; j++) {
+            output.rewards.push({
+                type: "ADD",
+                sku: sku,
+                // Proviamo a non specificare la fase per lasciare che il POS decida
+                // oppure usa 4 se il sistema lo richiede strettamente
+                insertionPhase: 4 
+            });
         }
     }
 }
 
-// 4. RESTITUIAMO IL JSON
+// Restituiamo il JSON finale
 JSON.stringify(output);
