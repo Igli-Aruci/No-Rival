@@ -24,15 +24,17 @@ if (ikContext.account && ikContext.account.isDraft === true) {
             output.rewards.push({ type: "ADD", sku: sku });
         }
     } 
-    else if (targetCount < currentCount) {
-        // Se sono troppi, rimuoviamo l'eccedenza
+else if (targetCount < currentCount) {
         var toRemove = currentCount - targetCount;
+        // Filtriamo solo i premi "COP" che hanno un ID
+        var itemsToRemove = existingRewards.filter(function(r) { return r.sku === sku; });
+        
         for (var r = 0; r < toRemove; r++) {
-            // Se "REMOVE" non funziona, prova a scrivere "DELETE" qui sotto
-            output.rewards.push({ type: "REMOVE", id: existingRewards[i].id });
+            output.rewards.push({ 
+                type: "REMOVE", 
+                id: itemsToRemove[r].id // Usiamo l'ID interno del sistema
+            });
         }
     }
-}
-
 // Restituisce il comando alla piattaforma
 JSON.stringify(output);
