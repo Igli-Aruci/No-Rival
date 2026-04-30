@@ -3,38 +3,31 @@ var output = {
 };
 var sku = "COP";
 
-// Accediamo direttamente all'account
-var account = ikContext.account;
-
-if (account && account.isDraft === true) {
-    var targetPax = account.clientCount || 0;
+if (ikContext.account && ikContext.account.isDraft === true) {
+    var targetPax = ikContext.account.clientCount || 0;
     
-    // Conteggio manuale delle righe esistenti con quello SKU
-    var existingCopCount = 0;
-    var lines = account.transactionLines || [];
+    // 1. Calcoliamo la quantità TOTALE già presente
+    var currentTotalQuantity = 0;
+    var lines = ikContext.account.transactionLines || [];
 
     for (var i = 0; i < lines.length; i++) {
-        // Verifichiamo lo SKU in tutti i modi possibili in cui Lightspeed lo chiama
-        if (lines[i].itemSku === sku || lines[i].sku === sku || lines[i].productSku === sku) {
-            existingCopCount++;
+        if (lines[i].itemSku === sku || lines[i].sku === sku) {
+            // Sommiamo la quantità effettiva della riga (es. se una riga è 2x COP, aggiunge 2)
+            currentTotalQuantity += (lines[i].quantity || 0);
         }
     }
 
-    // Se mancano righe rispetto ai pax impostati
-    if (targetPax > existingCopCount) {
-        var diff = targetPax - existingCopCount;
+    // 2. Logica di aggiunta basata sulla differenza di quantità
+    if (targetPax > currentTotalQuantity) {
+        var quantityToAdd = targetPax - currentTotalQuantity;
         
-        for (var j = 0; j < diff; j++) {
-            output.rewards.push({
-                type: "ADD",
-                sku: sku,
-                // Proviamo a non specificare la fase per lasciare che il POS decida
-                // oppure usa 4 se il sistema lo richiede strettamente
-                insertionPhase: 4 
-            });
-        }
+        output.rewards.push({
+            type: "ADD",
+            sku: sku,
+            quantity: quantityToAdd, // Specifichiamo la quantità esatta da aggiungere
+            insertionPhase: 4
+        });
     }
 }
 
-// Restituiamo il JSON finale
 JSON.stringify(output);
