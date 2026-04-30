@@ -1,13 +1,14 @@
 var output = { rewards: [] };
 var sku = "COP";
 
-if (ikContext.account.isDraft == true) {
+// Verifichiamo che l'account sia in bozza
+if (ikContext.account && ikContext.account.isDraft === true) {
+    
+    // 1. Quanti coperti abbiamo impostato ora?
     var targetCount = ikContext.account.clientCount || 0;
     
-    // Recuperiamo i premi già esistenti (attenzione al nome dell'array nel tuo sistema)
+    // 2. Quanti SKU "COP" sono già presenti nel sistema?
     var existingRewards = ikContext.account.rewards || [];
-    
-    // Contiamo quanti "COP" sono presenti attualmente
     var currentCount = 0;
     for (var i = 0; i < existingRewards.length; i++) {
         if (existingRewards[i].sku === sku) {
@@ -15,19 +16,23 @@ if (ikContext.account.isDraft == true) {
         }
     }
 
-    // Calcolo differenza
+    // 3. Calcoliamo la differenza
     if (targetCount > currentCount) {
-        // Aggiungi quelli che mancano
-        for (var a = 0; a < (targetCount - currentCount); a++) {
+        // Se mancano, aggiungiamo
+        var toAdd = targetCount - currentCount;
+        for (var a = 0; a < toAdd; a++) {
             output.rewards.push({ type: "ADD", sku: sku });
         }
-    } else if (targetCount < currentCount) {
-        // Rimuovi quelli in più
-        for (var r = 0; r < (currentCount - targetCount); r++) {
-            // PROVA: se "REMOVE" non va, prova "DELETE"
+    } 
+    else if (targetCount < currentCount) {
+        // Se sono troppi, rimuoviamo l'eccedenza
+        var toRemove = currentCount - targetCount;
+        for (var r = 0; r < toRemove; r++) {
+            // Se "REMOVE" non funziona, prova a scrivere "DELETE" qui sotto
             output.rewards.push({ type: "REMOVE", sku: sku });
         }
     }
 }
 
+// Restituisce il comando alla piattaforma
 JSON.stringify(output);
