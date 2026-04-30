@@ -29,7 +29,7 @@ if (ikContext.account && ikContext.account.isDraft === true) {
         var toRemove = currentCount - targetCount;
         for (var r = 0; r < toRemove; r++) {
             // Se "REMOVE" non funziona, prova a scrivere "DELETE" qui sotto
-            output.rewards.push({ type: "REMOVE", sku: sku });
+            output.rewards.push({ type: "DELETE", sku: sku });
         }
     }
 }
