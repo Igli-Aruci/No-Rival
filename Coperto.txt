@@ -5,32 +5,30 @@ if (ikContext.account && ikContext.account.isDraft === true) {
     var targetCount = ikContext.account.clientCount || 0;
     var existingRewards = ikContext.account.rewards || [];
     
-    // Filtriamo i premi esistenti per trovare tutti i "COP"
+    // Filtriamo i "COP" esistenti
     var copItems = existingRewards.filter(function(item) {
         return item.sku === sku;
     });
 
     var currentCount = copItems.length;
 
-    if (targetCount > currentCount) {
-        // AGGIUNGI: Lightspeed di solito accetta ADD
-        var toAdd = targetCount - currentCount;
-        for (var i = 0; i < toAdd; i++) {
+    // Se il numero attuale è diverso dal target (sia più alto che più basso)
+    if (targetCount !== currentCount) {
+        
+        // 1. RIMUOVIAMO TUTTO quello che esiste (Reset)
+        // Lightspeed spesso richiede di azzerare per aggiornare
+        for (var j = 0; j < currentCount; j++) {
+            output.rewards.push({
+                type: "DELETE", // In Lightspeed Restaurant prova DELETE o VOID
+                id: copItems[j].id || copItems[j].uuid
+            });
+        }
+
+        // 2. AGGIUNGIAMO il numero corretto da zero
+        for (var i = 0; i < targetCount; i++) {
             output.rewards.push({
                 type: "ADD",
                 sku: sku
-            });
-        }
-    } 
-    else if (targetCount < currentCount) {
-        // RIMOZIONE LIGHTSPEED: 
-        // In molti moduli Lightspeed, il comando corretto è "VOID" o "DELETE"
-        // e richiede il 'uuid' o il 'line_item_id'
-        var toRemove = currentCount - targetCount;
-        for (var j = 0; j < toRemove; j++) {
-            output.rewards.push({
-                type: "VOID", // Prova VOID, è lo standard Lightspeed per annullare righe
-                id: copItems[j].id || copItems[j].uuid
             });
         }
     }
