@@ -1,0 +1,35 @@
+var output = { rewards: [] };
+var sku = "COP";
+
+if (ikContext.account.isDraft == true) {
+    var targetCount = ikContext.account.clientCount; // Quanti dovrebbero essere
+    
+    // 1. Contiamo quanti SKU "COP" ci sono già
+    var existingRewards = ikContext.account.rewards || [];
+    var currentCount = existingRewards.filter(function(r) {
+        return r.sku === sku;
+    }).length;
+
+    // 2. Calcoliamo la differenza
+    var difference = targetCount - currentCount;
+
+    if (difference > 0) {
+        // Dobbiamo AGGIUNGERE la differenza
+        for (var i = 0; i < difference; i++) {
+            output.rewards.push({
+                type: "ADD",
+                sku: sku
+            });
+        }
+    } else if (difference < 0) {
+        // Dobbiamo RIMUOVERE l'eccedenza (se la piattaforma supporta "REMOVE")
+        for (var j = 0; j < Math.abs(difference); j++) {
+            output.rewards.push({
+                type: "REMOVE",
+                sku: sku
+            });
+        }
+    }
+}
+
+JSON.stringify(output);
