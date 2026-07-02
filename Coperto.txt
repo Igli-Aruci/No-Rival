@@ -20,7 +20,7 @@ if (ikContext.account && ikContext.account.isDraft === true) {
         }
     }
 
-    // 3. Se mancano dei coperti rispetto ai pax selezionati -> AGGIUNGIAMO
+    // 3. Se mancano dei coperti rispetto ai pax selezionati -> AGGIUNGIAMO (Delta Positivo)
     if (targetPax > currentTotalQuantity) {
         var quantityToAdd = targetPax - currentTotalQuantity;
         
@@ -28,18 +28,17 @@ if (ikContext.account && ikContext.account.isDraft === true) {
             type: "ADD",
             sku: sku,
             quantity: quantityToAdd,
-            // Usiamo la fase 4 per assicurarci che si agganci al salvataggio dell'ordine
             insertionPhase: 4
         });
     } 
-    // 4. Se i coperti nel conto sono MAGGIORI dei pax selezionati -> CANCELLIAMO L'ECCEDENZA
+    // 4. Se i coperti sul conto sono in ECCEDENZA -> STORNIAMO usando una QUANTITÀ NEGATIVA
     else if (currentTotalQuantity > targetPax) {
         var quantityToRemove = currentTotalQuantity - targetPax;
 
         output.rewards.push({
-            type: "REMOVE",
+            type: "ADD", // Resta ADD perché l'azione sul motore Lightspeed è l'applicazione del delta
             sku: sku,
-            quantity: quantityToRemove,
+            quantity: -quantityToRemove, // Diventa negativo (es. -1 se passi da 4 a 3)
             insertionPhase: 4
         });
     }
