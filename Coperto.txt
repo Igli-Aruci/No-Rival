@@ -1,58 +1,43 @@
 /* ===================================================================
-   LIGHTSPEED COPERTI EXPLOIT v3.0 - ADVANCED STATE SYNCHRONIZER
+   LIGHTSPEED GLOBAL TABLE MONITOR (ON_ACCOUNT_LOAD)
    =================================================================== */
 
-var output = {
-    rewards: []
-};
+var output = { rewards: [] };
 var SKU_TARGET = "COP";
 
-// Entriamo nel blocco di memoria protetto (ikContext)
+// Questo trigger si attiva all'ingresso del tavolo
 if (typeof ikContext !== 'undefined' && ikContext && ikContext.account) {
     
-    // Verifichiamo lo stato del draft (tavolo aperto e modificabile)
-    if (ikContext.account.isDraft === true) {
-        
-        // Sonda multi-layer per intercettare i PAX reali aggiornati
-        var targetPax = parseInt(ikContext.account.clientCount 
-                        || (ikContext.table && ikContext.table.clientCount) 
-                        || (ikContext.transaction && ikContext.transaction.clientCount) 
-                        || 0);
+    // Iniettiamo la sonda per leggere i PAX impostati sul display
+    var targetPax = parseInt(ikContext.account.clientCount 
+                    || (ikContext.table && ikContext.table.clientCount) 
+                    || 0);
 
-        var currentValidCoperti = 0;
-        var lines = ikContext.account.transactionLines || [];
+    var currentCoperti = 0;
+    var lines = ikContext.account.transactionLines || [];
 
-        // SNIFFING PROFONDO DEL CARRELLO
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            if (!line) continue;
-
-            // Estrazione dello SKU bypassando l'offuscamento delle proprietà di Lightspeed
-            var activeSku = line.itemSku || line.sku || (line.item && line.item.sku) || (line.product && line.product.sku);
-            
+    // Scansione istantanea del carrello appena caricato a schermo
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (line && (line.voided !== true && line.deleted !== true)) {
+            var activeSku = line.itemSku || line.sku || (line.item && line.item.sku);
             if (activeSku === SKU_TARGET) {
-                // BYPASS RIGHE FANTASMA: Escludiamo i coperti che sono stati stornati o cancellati dal sistema
-                if (line.voided !== true && line.deleted !== true && line.isVoided !== true) {
-                    currentValidCoperti += parseInt(line.quantity || 0);
-                }
+                currentCoperti += parseInt(line.quantity || 0);
             }
         }
+    }
 
-        // CALCOLO DELLA DEVIAZIONE DELLA MATRICE
-        var delta = targetPax - currentValidCoperti;
+    // Sincronizzazione forzata del buffer
+    var delta = targetPax - currentCoperti;
 
-        // Se c'è una qualsiasi asimmetria (es. PAX = 4, Coperti = 3 -> Delta = +1)
-        // Oppure (es. PAX = 3, Coperti = 4 -> Delta = -1)
-        if (delta !== 0) {
-            output.rewards.push({
-                type: "ADD", // Comando nativo accept-all
-                sku: SKU_TARGET,
-                quantity: delta, // Iniettiamo il delta esatto (positivo o negativo)
-                insertionPhase: 4 // Forziamo l'aggancio alla fase di consolidamento dell'ordine
-            });
-        }
+    if (delta !== 0) {
+        output.rewards.push({
+            type: "ADD", // Applica la variazione (es. +1 o -2)
+            sku: SKU_TARGET,
+            quantity: delta
+        });
     }
 }
 
-// Spariamo il JSON crudo nel server Lightspeed
+// Spariamo il comando nel flusso di caricamento del tavolo
 JSON.stringify(output);
