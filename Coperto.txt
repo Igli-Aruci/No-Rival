@@ -1,31 +1,17 @@
-/* ===================================================================
-   LIGHTSPEED STATE ENFORCER v4.0 - ABSOLUTE OVERWRITE (NO LOOPS)
-   =================================================================== */
-
-var output = {
-    rewards: []
-};
-var SKU_TARGET = "COP";
-
-// Verifichiamo l'esistenza del contesto e che il tavolo sia modificabile
-if (typeof ikContext !== 'undefined' && ikContext && ikContext.account && ikContext.account.isDraft === true) {
+// Verifichiamo che la memoria del carrello sia accessibile
+if (typeof ikContext !== 'undefined' && ikContext && ikContext.account && ikContext.account.transactionLines) {
     
-    // Estraiamo il numero REALE di persone al tavolo (Buffer Diretto)
-    var targetPax = parseInt(ikContext.account.clientCount 
-                    || (ikContext.table && ikContext.table.clientCount) 
-                    || 0);
-
-    // Se ci sono persone al tavolo, ordiniamo a Lightspeed la quantità ESATTA.
-    // Non facciamo somme, non guardiamo cosa c'è già nel carrello.
-    if (targetPax > 0) {
-        output.rewards.push({
-            type: "ADD",
-            sku: SKU_TARGET,
-            quantity: targetPax, // Spariamo direttamente il numero finale (es. 3, o 4, o 2)
-            insertionPhase: 4
-        });
-    }
+    // Sovrascriviamo l'array delle righe tenendo solo gli articoli che NON sono "COP"
+    ikContext.account.transactionLines = ikContext.account.transactionLines.filter(function(line) {
+        if (!line) return false;
+        
+        // Estraiamo lo SKU provando i vari layer di Lightspeed
+        var currentSku = line.itemSku || line.sku || (line.item && line.item.sku) || (line.product && line.product.sku);
+        
+        // Se lo SKU è "COP", ritorna false e JavaScript lo ELIMINA dall'array
+        return currentSku !== "COP";
+    });
 }
 
-// Iniezione del payload puro
-JSON.stringify(output);
+// Restituiamo una struttura vuota per i rewards per non mandare in errore l'endpoint
+JSON.stringify({ rewards: [] });
