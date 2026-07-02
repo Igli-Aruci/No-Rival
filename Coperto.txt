@@ -3,38 +3,50 @@ var output = {
 };
 var skuTarget = "COP";
 
-if (ikContext.account && ikContext.account.isDraft === true) {
+// Verifichiamo che il contesto esista e che l'account/tavolo sia modificabile (isDraft)
+if (ikContext && ikContext.account && ikContext.account.isDraft === true) {
     
-    var targetPax = parseInt(ikContext.account.clientCount) || 0;
+    // 1. FALLBACK DI SICUREZZA PER I PAX: Cerchiamo il numero di persone in tutte le posizioni possibili di Lightspeed
+    var targetPax = ikContext.account.clientCount 
+                    || (ikContext.table && ikContext.table.clientCount) 
+                    || (ikContext.transaction && ikContext.transaction.clientCount) 
+                    || 0;
+                    
     var currentTotalQuantity = 0;
     var lines = ikContext.account.transactionLines || [];
 
-    // Controllo più approfondito delle righe per trovare lo SKU (copre più varianti di API)
+    // 2. ISPEZIONE PROFONDA DEL CARRELLO: Estraiamo lo SKU in modo aggressivo
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
         if (!line) continue;
         
-        var currentSku = line.itemSku || line.sku || (line.item && line.item.sku) || (line.product && line.product.sku);
+        // Lightspeed K-Series mappa lo SKU in punti diversi a seconda della versione API
+        var currentSku = line.itemSku 
+                        || line.sku 
+                        || (line.item && line.item.sku) 
+                        || (line.product && line.product.sku)
+                        || (line.catalogItem && line.catalogItem.sku);
         
         if (currentSku === skuTarget) {
             currentTotalQuantity += (line.quantity || 0);
         }
     }
 
-    // Se i coperti attuali sono DIVERSI da quelli desiderati
+    // 3. LOGICA DI SINCRO: Calcoliamo la differenza matematica (Delta)
     if (targetPax !== currentTotalQuantity) {
-        
-        // Calcoliamo la differenza (sarà positiva se dobbiamo aggiungere, negativa se dobbiamo togliere)
         var delta = targetPax - currentTotalQuantity;
         
-        // Generiamo il reward standard Teckel
-        output.rewards.push({
-            type: "ADD",
+        // Struttura formale Teckel Rich Item Reward
+        var rewardAction = {
+            type: "ADD", 
             sku: skuTarget,
-            quantity: delta, // Lightspeed preferisce ricevere il delta esatto (es. +2 o -1)
-            insertionPhase: 4
-        });
+            quantity: delta
+        };
+
+        // Rimuoviamo insertionPhase se bloccava l'esecuzione, lasciando che il motore decida in base all'endpoint rich-item
+        output.rewards.push(rewardAction);
     }
 }
 
+// Ritorno della stringa JSON richiesta dall'interprete Lightspeed
 JSON.stringify(output);
