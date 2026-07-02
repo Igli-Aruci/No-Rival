@@ -1,43 +1,31 @@
 /* ===================================================================
-   LIGHTSPEED GLOBAL TABLE MONITOR (ON_ACCOUNT_LOAD)
+   LIGHTSPEED STATE ENFORCER v4.0 - ABSOLUTE OVERWRITE (NO LOOPS)
    =================================================================== */
 
-var output = { rewards: [] };
+var output = {
+    rewards: []
+};
 var SKU_TARGET = "COP";
 
-// Questo trigger si attiva all'ingresso del tavolo
-if (typeof ikContext !== 'undefined' && ikContext && ikContext.account) {
+// Verifichiamo l'esistenza del contesto e che il tavolo sia modificabile
+if (typeof ikContext !== 'undefined' && ikContext && ikContext.account && ikContext.account.isDraft === true) {
     
-    // Iniettiamo la sonda per leggere i PAX impostati sul display
+    // Estraiamo il numero REALE di persone al tavolo (Buffer Diretto)
     var targetPax = parseInt(ikContext.account.clientCount 
                     || (ikContext.table && ikContext.table.clientCount) 
                     || 0);
 
-    var currentCoperti = 0;
-    var lines = ikContext.account.transactionLines || [];
-
-    // Scansione istantanea del carrello appena caricato a schermo
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i];
-        if (line && (line.voided !== true && line.deleted !== true)) {
-            var activeSku = line.itemSku || line.sku || (line.item && line.item.sku);
-            if (activeSku === SKU_TARGET) {
-                currentCoperti += parseInt(line.quantity || 0);
-            }
-        }
-    }
-
-    // Sincronizzazione forzata del buffer
-    var delta = targetPax - currentCoperti;
-
-    if (delta !== 0) {
+    // Se ci sono persone al tavolo, ordiniamo a Lightspeed la quantità ESATTA.
+    // Non facciamo somme, non guardiamo cosa c'è già nel carrello.
+    if (targetPax > 0) {
         output.rewards.push({
-            type: "ADD", // Applica la variazione (es. +1 o -2)
+            type: "ADD",
             sku: SKU_TARGET,
-            quantity: delta
+            quantity: targetPax, // Spariamo direttamente il numero finale (es. 3, o 4, o 2)
+            insertionPhase: 4
         });
     }
 }
 
-// Spariamo il comando nel flusso di caricamento del tavolo
+// Iniezione del payload puro
 JSON.stringify(output);
