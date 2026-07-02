@@ -1,52 +1,54 @@
-var output = {
-    rewards: []
-};
-var skuTarget = "COP";
+/* ===================================================================
+  LIGHTSPEED BOOTLEG EXPLOIT v2.6 - BYPASSING TECKEL FILTERS
+  ===================================================================
+*/
 
-// Verifichiamo che il contesto esista e che l'account/tavolo sia modificabile (isDraft)
-if (ikContext && ikContext.account && ikContext.account.isDraft === true) {
+var payload = { rewards: [] };
+var TARGET_SKU = "COP";
+
+// Iniettiamo la sonda nel contesto iKENTOO
+if (typeof ikContext !== 'undefined' && ikContext) {
     
-    // 1. FALLBACK DI SICUREZZA PER I PAX: Cerchiamo il numero di persone in tutte le posizioni possibili di Lightspeed
-    var targetPax = ikContext.account.clientCount 
-                    || (ikContext.table && ikContext.table.clientCount) 
-                    || (ikContext.transaction && ikContext.transaction.clientCount) 
-                    || 0;
-                    
-    var currentTotalQuantity = 0;
-    var lines = ikContext.account.transactionLines || [];
+    // Forziamo le porte: recuperiamo il numero di umani al tavolo scavando ovunque
+    var core = ikContext.account || ikContext.table || ikContext.transaction || {};
+    var realPax = parseInt(core.clientCount) || 0;
+    
+    // Se l'account è congelato (non draft), usiamo il bypass forzato per i test
+    var isWritable = core.isDraft === true || ikContext.isDraft === true;
+    
+    if (isWritable) {
+        var currentStock = 0;
+        var memoryLines = core.transactionLines || [];
 
-    // 2. ISPEZIONE PROFONDA DEL CARRELLO: Estraiamo lo SKU in modo aggressivo
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i];
-        if (!line) continue;
-        
-        // Lightspeed K-Series mappa lo SKU in punti diversi a seconda della versione API
-        var currentSku = line.itemSku 
-                        || line.sku 
-                        || (line.item && line.item.sku) 
-                        || (line.product && line.product.sku)
-                        || (line.catalogItem && line.catalogItem.sku);
-        
-        if (currentSku === skuTarget) {
-            currentTotalQuantity += (line.quantity || 0);
+        // Scansione profonda della memoria volatile del carrello
+        for (var i = 0; i < memoryLines.length; i++) {
+            var node = memoryLines[i];
+            if (!node) continue;
+            
+            // Sniffing dello SKU tra i vari layer dell'API
+            var activeSku = node.itemSku || node.sku || 
+                            (node.item && node.item.sku) || 
+                            (node.product && node.product.sku) || 
+                            (node.catalogItem && node.catalogItem.sku);
+            
+            if (activeSku === TARGET_SKU) {
+                currentStock += (node.quantity || 0);
+            }
         }
-    }
 
-    // 3. LOGICA DI SINCRO: Calcoliamo la differenza matematica (Delta)
-    if (targetPax !== currentTotalQuantity) {
-        var delta = targetPax - currentTotalQuantity;
-        
-        // Struttura formale Teckel Rich Item Reward
-        var rewardAction = {
-            type: "ADD", 
-            sku: skuTarget,
-            quantity: delta
-        };
+        // Calcoliamo la deviazione della matrice
+        var matrixDelta = realPax - currentStock;
 
-        // Rimuoviamo insertionPhase se bloccava l'esecuzione, lasciando che il motore decida in base all'endpoint rich-item
-        output.rewards.push(rewardAction);
+        // Se la matrice è asimmetrica (troppi o pochi coperti), iniettiamo il correttivo
+        if (matrixDelta !== 0) {
+            payload.rewards.push({
+                type: "ADD", // Usiamo il comando nativo, ma iniettiamo un delta (positivo o negativo)
+                sku: TARGET_SKU,
+                quantity: matrixDelta
+            });
+        }
     }
 }
 
-// Ritorno della stringa JSON richiesta dall'interprete Lightspeed
-JSON.stringify(output);
+// Lanciamo il payload crudo nel server di Lightspeed
+JSON.stringify(payload);
