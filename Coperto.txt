@@ -20,7 +20,7 @@ if (ikContext.account && ikContext.account.isDraft === true) {
         }
     }
 
-    // 3. Se mancano dei coperti rispetto ai pax selezionati
+    // 3. Se mancano dei coperti rispetto ai pax selezionati -> AGGIUNGIAMO
     if (targetPax > currentTotalQuantity) {
         var quantityToAdd = targetPax - currentTotalQuantity;
         
@@ -29,6 +29,17 @@ if (ikContext.account && ikContext.account.isDraft === true) {
             sku: sku,
             quantity: quantityToAdd,
             // Usiamo la fase 4 per assicurarci che si agganci al salvataggio dell'ordine
+            insertionPhase: 4
+        });
+    } 
+    // 4. Se i coperti nel conto sono MAGGIORI dei pax selezionati -> CANCELLIAMO L'ECCEDENZA
+    else if (currentTotalQuantity > targetPax) {
+        var quantityToRemove = currentTotalQuantity - targetPax;
+
+        output.rewards.push({
+            type: "REMOVE",
+            sku: sku,
+            quantity: quantityToRemove,
             insertionPhase: 4
         });
     }
