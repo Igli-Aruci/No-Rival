@@ -1,54 +1,40 @@
-/* ===================================================================
-  LIGHTSPEED BOOTLEG EXPLOIT v2.6 - BYPASSING TECKEL FILTERS
-  ===================================================================
-*/
-
-var payload = { rewards: [] };
+var payload = {
+    rewards: []
+};
 var TARGET_SKU = "COP";
 
-// Iniettiamo la sonda nel contesto iKENTOO
-if (typeof ikContext !== 'undefined' && ikContext) {
+if (typeof ikContext !== 'undefined' && ikContext && ikContext.account) {
     
-    // Forziamo le porte: recuperiamo il numero di umani al tavolo scavando ovunque
-    var core = ikContext.account || ikContext.table || ikContext.transaction || {};
-    var realPax = parseInt(core.clientCount) || 0;
+    // Sniffing dei PAX reali aggiornati al millisecondo
+    var realPax = parseInt(ikContext.account.clientCount || (ikContext.table && ikContext.table.clientCount) || 0);
     
-    // Se l'account è congelato (non draft), usiamo il bypass forzato per i test
-    var isWritable = core.isDraft === true || ikContext.isDraft === true;
-    
-    if (isWritable) {
-        var currentStock = 0;
-        var memoryLines = core.transactionLines || [];
+    var currentStock = 0;
+    var lines = ikContext.account.transactionLines || [];
 
-        // Scansione profonda della memoria volatile del carrello
-        for (var i = 0; i < memoryLines.length; i++) {
-            var node = memoryLines[i];
-            if (!node) continue;
-            
-            // Sniffing dello SKU tra i vari layer dell'API
-            var activeSku = node.itemSku || node.sku || 
-                            (node.item && node.item.sku) || 
-                            (node.product && node.product.sku) || 
-                            (node.catalogItem && node.catalogItem.sku);
-            
-            if (activeSku === TARGET_SKU) {
-                currentStock += (node.quantity || 0);
-            }
+    // Ispezione del carrello corrente
+    for (var i = 0; i < lines.length; i++) {
+        var node = lines[i];
+        if (!node) continue;
+        
+        var activeSku = node.itemSku || node.sku || (node.item && node.item.sku) || (node.product && node.product.sku);
+        if (activeSku === TARGET_SKU) {
+            currentStock += (node.quantity || 0);
         }
+    }
 
-        // Calcoliamo la deviazione della matrice
-        var matrixDelta = realPax - currentStock;
+    // CALCOLO DELLA DEVIAZIONE
+    var delta = realPax - currentStock;
 
-        // Se la matrice è asimmetrica (troppi o pochi coperti), iniettiamo il correttivo
-        if (matrixDelta !== 0) {
-            payload.rewards.push({
-                type: "ADD", // Usiamo il comando nativo, ma iniettiamo un delta (positivo o negativo)
-                sku: TARGET_SKU,
-                quantity: matrixDelta
-            });
-        }
+    if (delta !== 0) {
+        // Se i coperti sono maggiori del dovuto (es. stock=4, pax=3 -> delta=-1)
+        // o se sono minori (es. stock=3, pax=4 -> delta=1)
+        payload.rewards.push({
+            type: "ADD", 
+            sku: TARGET_SKU,
+            quantity: delta // Iniettiamo il delta esatto (positivo o negativo)
+        });
     }
 }
 
-// Lanciamo il payload crudo nel server di Lightspeed
+// Iniezione del payload nel server
 JSON.stringify(payload);
