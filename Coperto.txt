@@ -1,17 +1,46 @@
-// Verifichiamo che la memoria del carrello sia accessibile
-if (typeof ikContext !== 'undefined' && ikContext && ikContext.account && ikContext.account.transactionLines) {
+var sku = "COP";
+
+if (ikContext.account && ikContext.account.isDraft === true) {
     
-    // Sovrascriviamo l'array delle righe tenendo solo gli articoli che NON sono "COP"
-    ikContext.account.transactionLines = ikContext.account.transactionLines.filter(function(line) {
-        if (!line) return false;
+    var targetPax = ikContext.account.clientCount || 0;
+    var lines = ikContext.account.transactionLines || [];
+    
+    // 1. Calcoliamo quanti COP ci sono attualmente
+    var currentTotalQuantity = 0;
+    for (var i = 0; i < lines.length; i++) {
+        if (lines[i].itemSku === sku || lines[i].sku === sku) {
+            currentTotalQuantity += (lines[i].quantity || 0);
+        }
+    }
+
+    // 2. SE I COPERTI SONO MAGGIORI, CHIRURGIA JAVASCRIPT: Eliminiamo l'eccedenza
+    if (currentTotalQuantity > targetPax) {
+        var quantityToRemove = currentTotalQuantity - targetPax;
         
-        // Estraiamo lo SKU provando i vari layer di Lightspeed
-        var currentSku = line.itemSku || line.sku || (line.item && line.item.sku) || (line.product && line.product.sku);
-        
-        // Se lo SKU è "COP", ritorna false e JavaScript lo ELIMINA dall'array
-        return currentSku !== "COP";
-    });
+        // Giriamo l'array al contrario (dall'ultima riga alla prima) 
+        // per poter usare lo .splice() in totale sicurezza senza sballare gli indici
+        for (var i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].itemSku === sku || lines[i].sku === sku) {
+                var lineQty = lines[i].quantity || 0;
+                
+                if (lineQty <= quantityToRemove) {
+                    // Caso A: La riga contiene meno o uguali coperti di quelli da togliere.
+                    // Eliminiamo la riga FISICAMENTE dal carrello di Lightspeed
+                    quantityToRemove -= lineQty;
+                    lines.splice(i, 1); // <--- Questo distrugge la riga in memoria
+                } else {
+                    // Caso B: La riga ha più coperti di quelli che dobbiamo togliere.
+                    // Sottraiamo semplicemente la quantità direttamente sulla riga
+                    lines[i].quantity -= quantityToRemove;
+                    quantityToRemove = 0;
+                }
+                
+                // Se abbiamo rimosso tutta l'eccedenza, fermiamo il ciclo immediatamente
+                if (quantityToRemove === 0) break;
+            }
+        }
+    }
 }
 
-// Restituiamo una struttura vuota per i rewards per non mandare in errore l'endpoint
+// Restituiamo l'output standard per non mandare in blocco l'interprete
 JSON.stringify({ rewards: [] });
