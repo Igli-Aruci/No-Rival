@@ -1,46 +1,40 @@
 var output = {
     rewards: []
 };
-var sku = "COP";
+var skuTarget = "COP";
 
-// 1. Verifichiamo che il tavolo sia aperto (isDraft)
 if (ikContext.account && ikContext.account.isDraft === true) {
     
-    // Recuperiamo il numero di persone salvato nel tavolo
-    var targetPax = ikContext.account.clientCount || 0;
-    
-    // 2. Calcoliamo quanti COP sono già presenti nel conto
+    var targetPax = parseInt(ikContext.account.clientCount) || 0;
     var currentTotalQuantity = 0;
     var lines = ikContext.account.transactionLines || [];
 
+    // Controllo più approfondito delle righe per trovare lo SKU (copre più varianti di API)
     for (var i = 0; i < lines.length; i++) {
-        if (lines[i].itemSku === sku || lines[i].sku === sku) {
-            currentTotalQuantity += (lines[i].quantity || 0);
+        var line = lines[i];
+        if (!line) continue;
+        
+        var currentSku = line.itemSku || line.sku || (line.item && line.item.sku) || (line.product && line.product.sku);
+        
+        if (currentSku === skuTarget) {
+            currentTotalQuantity += (line.quantity || 0);
         }
     }
 
-    // 3. Se mancano dei coperti rispetto ai pax selezionati -> AGGIUNGIAMO
-    if (targetPax > currentTotalQuantity) {
-        var quantityToAdd = targetPax - currentTotalQuantity;
+    // Se i coperti attuali sono DIVERSI da quelli desiderati
+    if (targetPax !== currentTotalQuantity) {
         
+        // Calcoliamo la differenza (sarà positiva se dobbiamo aggiungere, negativa se dobbiamo togliere)
+        var delta = targetPax - currentTotalQuantity;
+        
+        // Generiamo il reward standard Teckel
         output.rewards.push({
             type: "ADD",
-            sku: sku,
-            quantity: quantityToAdd,
-            insertionPhase: 4
-        });
-    } 
-    // 4. Se i coperti sono in ECCEDENZA -> Usiamo UPDATE per impostare il valore esatto dei PAX
-    else if (currentTotalQuantity > targetPax) {
-        
-        output.rewards.push({
-            type: "UPDATE", // Diciamo a Teckel di aggiornare lo stato di questo SKU
-            sku: sku,
-            quantity: targetPax, // Impostiamo direttamente il numero finale desiderato (es. 3)
+            sku: skuTarget,
+            quantity: delta, // Lightspeed preferisce ricevere il delta esatto (es. +2 o -1)
             insertionPhase: 4
         });
     }
 }
 
-// Restituiamo il comando a Lightspeed
 JSON.stringify(output);
