@@ -9,18 +9,17 @@ if (ikContext.account && ikContext.account.isDraft === true) {
     // Recuperiamo il numero di persone salvato nel tavolo
     var targetPax = ikContext.account.clientCount || 0;
     
-    // 2. Calcoliamo quanti COP sono già presenti nel conto (sommando le quantità)
+    // 2. Calcoliamo quanti COP sono già presenti nel conto
     var currentTotalQuantity = 0;
     var lines = ikContext.account.transactionLines || [];
 
     for (var i = 0; i < lines.length; i++) {
         if (lines[i].itemSku === sku || lines[i].sku === sku) {
-            // Usiamo la proprietà quantity della riga
             currentTotalQuantity += (lines[i].quantity || 0);
         }
     }
 
-    // 3. Se mancano dei coperti rispetto ai pax selezionati -> AGGIUNGIAMO (Delta Positivo)
+    // 3. Se mancano dei coperti rispetto ai pax selezionati -> AGGIUNGIAMO
     if (targetPax > currentTotalQuantity) {
         var quantityToAdd = targetPax - currentTotalQuantity;
         
@@ -31,14 +30,13 @@ if (ikContext.account && ikContext.account.isDraft === true) {
             insertionPhase: 4
         });
     } 
-    // 4. Se i coperti sul conto sono in ECCEDENZA -> STORNIAMO usando una QUANTITÀ NEGATIVA
+    // 4. Se i coperti sono in ECCEDENZA -> Usiamo UPDATE per impostare il valore esatto dei PAX
     else if (currentTotalQuantity > targetPax) {
-        var quantityToRemove = currentTotalQuantity - targetPax;
-
+        
         output.rewards.push({
-            type: "ADD", // Resta ADD perché l'azione sul motore Lightspeed è l'applicazione del delta
+            type: "UPDATE", // Diciamo a Teckel di aggiornare lo stato di questo SKU
             sku: sku,
-            quantity: -quantityToRemove, // Diventa negativo (es. -1 se passi da 4 a 3)
+            quantity: targetPax, // Impostiamo direttamente il numero finale desiderato (es. 3)
             insertionPhase: 4
         });
     }
